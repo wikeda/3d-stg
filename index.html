@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Space Harrier Style 3D Shooter</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      overflow: hidden;
+      font-family: 'Arial', sans-serif;
+      background: #000;
+    }
+    #game-container {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+    canvas {
+      display: block;
+    }
+    #hud {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      color: white;
+      font-size: 20px;
+      font-weight: bold;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+      z-index: 10;
+    }
+    #hp-display {
+      margin-bottom: 10px;
+    }
+    #stage-display {
+      margin-bottom: 10px;
+    }
+    #score-display {
+      margin-bottom: 10px;
+    }
+    #game-over-screen {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: white;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 40px;
+      border-radius: 10px;
+      display: none;
+      z-index: 100;
+    }
+    #game-over-screen h1 {
+      font-size: 48px;
+      margin-bottom: 20px;
+      color: #ff0000;
+    }
+    #game-over-screen button {
+      margin-top: 20px;
+      padding: 15px 30px;
+      font-size: 20px;
+      background: #ff0000;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    #game-over-screen button:hover {
+      background: #cc0000;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div id="hud">
+      <div id="hp-display">HP: 5</div>
+      <div id="stage-display">STAGE 1</div>
+      <div id="score-display">SCORE: 0</div>
+    </div>
+    <div id="game-over-screen">
+      <h1>GAME OVER</h1>
+      <p>Final Score: <span id="final-score">0</span></p>
+      <p>Stage Reached: <span id="final-stage">1</span></p>
+      <button id="retry-button">RETRY</button>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

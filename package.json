@@ -1,0 +1,30 @@
+{
+  "name": "3d-stg",
+  "version": "1.0.0",
+  "description": "Space Harrier Style 3D Shooting Game",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wikeda/3d-stg.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/wikeda/3d-stg/issues"
+  },
+  "homepage": "https://github.com/wikeda/3d-stg#readme",
+  "dependencies": {
+    "three": "^0.181.2"
+  },
+  "devDependencies": {
+    "@types/three": "^0.181.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.4"
+  }
+}
