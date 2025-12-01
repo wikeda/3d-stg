@@ -8,8 +8,8 @@ export class EnemyTypeC extends Enemy {
   private zigzagAmplitude: number = 8
   private zigzagFrequency: number = 1.5
 
-  constructor(scene: THREE.Scene, position: THREE.Vector3) {
-    super(scene, position, 3)
+  constructor(scene: THREE.Scene, position: THREE.Vector3, gameSpeed: number = 1.0) {
+    super(scene, position, 3, gameSpeed)
     this.initialX = position.x
   }
 
@@ -38,7 +38,7 @@ export class EnemyTypeC extends Enemy {
     this.mesh.position.y += (targetY - this.mesh.position.y) * this.trackingSpeed * deltaTime * 0.5
 
     // Move forward
-    this.mesh.position.z += this.speed * deltaTime
+    this.mesh.position.z += this.speed * this.gameSpeed * deltaTime
 
     if (this.mesh.position.z > 20) {
       this.active = false
@@ -47,5 +47,6 @@ export class EnemyTypeC extends Enemy {
     this.mesh.rotation.x += deltaTime * 3
     this.mesh.rotation.y += deltaTime * 3
     this.mesh.rotation.z += deltaTime * 3
+
   }
 }

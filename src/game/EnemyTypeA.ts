@@ -2,8 +2,8 @@ import * as THREE from 'three'
 import { Enemy } from './Enemy'
 
 export class EnemyTypeA extends Enemy {
-  constructor(scene: THREE.Scene, position: THREE.Vector3) {
-    super(scene, position, 1)
+  constructor(scene: THREE.Scene, position: THREE.Vector3, gameSpeed: number = 1.0) {
+    super(scene, position, 1, gameSpeed)
   }
 
   protected createMesh(): THREE.Mesh {
@@ -19,12 +19,13 @@ export class EnemyTypeA extends Enemy {
 
   update(deltaTime: number, playerPos: THREE.Vector3): void {
     // Straight movement towards player
-    this.mesh.position.z += this.speed * deltaTime
+    this.mesh.position.z += this.speed * this.gameSpeed * deltaTime
 
     if (this.mesh.position.z > 20) {
       this.active = false
     }
 
     this.mesh.rotation.y += deltaTime * 2
+
   }
 }

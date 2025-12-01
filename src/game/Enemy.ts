@@ -5,11 +5,14 @@ export abstract class Enemy {
   protected hp: number
   protected maxHp: number
   protected speed: number = 20
+  protected gameSpeed: number = 1.0
+  protected canShoot: boolean = false
   public active: boolean = true
 
-  constructor(scene: THREE.Scene, position: THREE.Vector3, hp: number) {
+  constructor(scene: THREE.Scene, position: THREE.Vector3, hp: number, gameSpeed: number = 1.0) {
     this.hp = hp
     this.maxHp = hp
+    this.gameSpeed = gameSpeed
     this.mesh = this.createMesh()
     this.mesh.position.copy(position)
     scene.add(this.mesh)

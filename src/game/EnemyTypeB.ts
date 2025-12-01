@@ -3,9 +3,11 @@ import { Enemy } from './Enemy'
 
 export class EnemyTypeB extends Enemy {
   private timeAlive: number = 0
+  private hasShot: boolean = false
+  private shootZPosition: number = -30 // Shoot when reaching this Z position
 
-  constructor(scene: THREE.Scene, position: THREE.Vector3) {
-    super(scene, position, 2)
+  constructor(scene: THREE.Scene, position: THREE.Vector3, gameSpeed: number = 1.0) {
+    super(scene, position, 2, gameSpeed)
   }
 
   protected createMesh(): THREE.Mesh {
@@ -19,6 +21,15 @@ export class EnemyTypeB extends Enemy {
     return mesh
   }
 
+  shouldShootNow(): boolean {
+    // Shoot once when reaching the shoot position
+    if (!this.hasShot && this.mesh.position.z >= this.shootZPosition && this.canShoot) {
+      this.hasShot = true
+      return true
+    }
+    return false
+  }
+
   update(deltaTime: number, playerPos: THREE.Vector3): void {
     this.timeAlive += deltaTime
 
@@ -28,7 +39,7 @@ export class EnemyTypeB extends Enemy {
     this.mesh.position.x = Math.sin(this.timeAlive * frequency) * amplitude
 
     // Move forward
-    this.mesh.position.z += this.speed * deltaTime
+    this.mesh.position.z += this.speed * this.gameSpeed * deltaTime
 
     if (this.mesh.position.z > 20) {
       this.active = false
@@ -36,5 +47,6 @@ export class EnemyTypeB extends Enemy {
 
     this.mesh.rotation.x += deltaTime * 2
     this.mesh.rotation.y += deltaTime * 2
+
   }
 }

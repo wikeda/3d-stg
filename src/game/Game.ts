@@ -4,6 +4,7 @@ import { Background } from '../scene/Background'
 import { InputManager } from '../input/InputManager'
 import { Player } from './Player'
 import { Bullet } from './Bullet'
+import { EnemyBullet } from './EnemyBullet'
 import { Enemy } from './Enemy'
 import { EnemyTypeA } from './EnemyTypeA'
 import { EnemyTypeB } from './EnemyTypeB'
@@ -22,6 +23,7 @@ export class Game {
   private player: Player
   private enemies: Enemy[] = []
   private bullets: Bullet[] = []
+  private enemyBullets: EnemyBullet[] = []
   private obstacles: Obstacle[] = []
   private background: Background
   private hud: HUD
@@ -32,6 +34,8 @@ export class Game {
   private clock: THREE.Clock
   private gameState: 'playing' | 'gameover' | 'stageclear' = 'playing'
   private currentStage: number = 1
+  private currentGameSpeed: number = 1.0
+  private enemiesCanShoot: boolean = false
   private maxBullets: number = 5
 
   // Enemy spawning
@@ -40,9 +44,9 @@ export class Game {
   private obstacleSpawnTimer: number = 0
   private obstacleSpawnInterval: number = 4.0
 
-  // Stage clear tracking
-  private enemiesKilledThisStage: number = 0
-  private enemiesNeededForClear: number = 20
+  // Stage clear tracking (score-based)
+  private scoreNeededForClear: number = 1200
+  private stageStartScore: number = 0
 
   constructor() {
     this.sceneManager = new SceneManager()
@@ -92,6 +96,20 @@ export class Game {
       bullet.update(deltaTime)
     }
 
+    // Update enemy bullets
+    for (const bullet of this.enemyBullets) {
+      bullet.update(deltaTime)
+    }
+
+    // Remove inactive enemy bullets
+    this.enemyBullets = this.enemyBullets.filter(bullet => {
+      if (!bullet.active) {
+        bullet.destroy(this.sceneManager.getScene())
+        return false
+      }
+      return true
+    })
+
     // Remove inactive bullets
     this.bullets = this.bullets.filter(bullet => {
       if (!bullet.active) {
@@ -105,6 +123,16 @@ export class Game {
     const playerPos = this.player.getPosition()
     for (const enemy of this.enemies) {
       enemy.update(deltaTime, playerPos)
+      
+      // Check if EnemyTypeB should shoot
+      if (this.enemiesCanShoot && enemy instanceof EnemyTypeB) {
+        if (enemy.shouldShootNow()) {
+          const enemyPos = enemy.getPosition()
+          const direction = playerPos.clone().sub(enemyPos)
+          const bullet = new EnemyBullet(this.sceneManager.getScene(), enemyPos, direction)
+          this.enemyBullets.push(bullet)
+        }
+      }
     }
 
     // Remove inactive enemies
@@ -149,10 +177,10 @@ export class Game {
             const enemyType = this.getEnemyType(enemy)
             this.scoreManager.addEnemyScore(enemyType)
             this.hud.updateScore(this.scoreManager.getScore())
-            this.enemiesKilledThisStage++
 
-            // Check stage clear
-            if (this.enemiesKilledThisStage >= this.enemiesNeededForClear) {
+            // Check stage clear (score-based)
+            const scoreEarnedThisStage = this.scoreManager.getScore() - this.stageStartScore
+            if (scoreEarnedThisStage >= this.scoreNeededForClear) {
               this.handleStageClear()
             }
           }
@@ -193,6 +221,22 @@ export class Game {
       }
     }
 
+
+    // Player vs enemy bullets
+    for (const bullet of this.enemyBullets) {
+      if (!bullet.active) continue
+
+      if (this.collisionDetector.checkSphereCollision(playerPos, 1.5, bullet.getPosition(), 1.5)) {
+        bullet.active = false
+        const gameOver = this.player.takeDamage(1)
+        this.hud.updateHP(this.player.getHP())
+        if (gameOver) {
+          this.handleGameOver()
+        }
+        break
+      }
+    }
+
     // Spawn enemies
     this.enemySpawnTimer += deltaTime
     if (this.enemySpawnTimer >= this.enemySpawnInterval) {
@@ -225,18 +269,23 @@ export class Game {
 
     switch (enemyType) {
       case 0:
-        enemy = new EnemyTypeA(this.sceneManager.getScene(), new THREE.Vector3(x, y, z))
+        enemy = new EnemyTypeA(this.sceneManager.getScene(), new THREE.Vector3(x, y, z), this.currentGameSpeed)
         break
       case 1:
-        enemy = new EnemyTypeB(this.sceneManager.getScene(), new THREE.Vector3(x, y, z))
+        enemy = new EnemyTypeB(this.sceneManager.getScene(), new THREE.Vector3(x, y, z), this.currentGameSpeed)
         break
       case 2:
-        enemy = new EnemyTypeC(this.sceneManager.getScene(), new THREE.Vector3(x, y, z))
+        enemy = new EnemyTypeC(this.sceneManager.getScene(), new THREE.Vector3(x, y, z), this.currentGameSpeed)
         break
       default:
-        enemy = new EnemyTypeA(this.sceneManager.getScene(), new THREE.Vector3(x, y, z))
+        enemy = new EnemyTypeA(this.sceneManager.getScene(), new THREE.Vector3(x, y, z), this.currentGameSpeed)
     }
 
+    // Set shooting capability based on stage
+    if (this.enemiesCanShoot) {
+      enemy['canShoot'] = true
+    }
+    
     this.enemies.push(enemy)
   }
 
@@ -246,7 +295,7 @@ export class Game {
     const z = -100
     const type = Math.random() > 0.5 ? 'rock' : 'pillar'
 
-    const obstacle = new Obstacle(this.sceneManager.getScene(), new THREE.Vector3(x, y, z), type)
+    const obstacle = new Obstacle(this.sceneManager.getScene(), new THREE.Vector3(x, y, z), type, this.currentGameSpeed)
     this.obstacles.push(obstacle)
   }
 
@@ -255,10 +304,27 @@ export class Game {
     this.currentStage = stageNumber
     this.enemySpawnInterval = stageConfig.enemySpawnInterval
     this.obstacleSpawnInterval = stageConfig.obstacleSpawnInterval
-    this.enemiesKilledThisStage = 0
+
+    // Set score needed for this stage
+    this.scoreNeededForClear = stageConfig.scoreNeededForClear
+    this.stageStartScore = this.scoreManager.getScore()
+    
+    // Set game speed
+    this.currentGameSpeed = stageConfig.gameSpeed
+    this.background.setGameSpeed(stageConfig.gameSpeed)
+    
+    // Set enemies shooting capability
+    this.enemiesCanShoot = stageConfig.enemiesCanShoot
 
     // Update background colors
     this.background.updateGroundColors(stageConfig.groundColors.color1, stageConfig.groundColors.color2)
+
+    // Update ceiling
+    if (stageConfig.hasCeiling && stageConfig.ceilingColors) {
+      this.background.updateCeiling(true, stageConfig.ceilingColors.color1, stageConfig.ceilingColors.color2)
+    } else {
+      this.background.updateCeiling(false)
+    }
 
     // Update HUD
     this.hud.updateStage(stageNumber)
@@ -304,6 +370,7 @@ export class Game {
     }
 
     this.bullets = []
+    this.enemyBullets = []
     this.enemies = []
     this.obstacles = []
 
@@ -317,7 +384,6 @@ export class Game {
     this.gameState = 'playing'
     this.enemySpawnTimer = 0
     this.obstacleSpawnTimer = 0
-    this.enemiesKilledThisStage = 0
 
     // Load stage 1
     this.loadStage(1)

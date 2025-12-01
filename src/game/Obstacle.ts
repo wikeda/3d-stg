@@ -3,9 +3,11 @@ import * as THREE from 'three'
 export class Obstacle {
   private mesh: THREE.Mesh
   private speed: number = 20
+  private gameSpeed: number = 1.0
   public active: boolean = true
 
-  constructor(scene: THREE.Scene, position: THREE.Vector3, type: 'rock' | 'pillar' = 'rock') {
+  constructor(scene: THREE.Scene, position: THREE.Vector3, type: 'rock' | 'pillar' = 'rock', gameSpeed: number = 1.0) {
+    this.gameSpeed = gameSpeed
     this.mesh = this.createMesh(type)
     this.mesh.position.copy(position)
     scene.add(this.mesh)
@@ -32,7 +34,7 @@ export class Obstacle {
 
   update(deltaTime: number): void {
     // Move forward
-    this.mesh.position.z += this.speed * deltaTime
+    this.mesh.position.z += this.speed * this.gameSpeed * deltaTime
 
     if (this.mesh.position.z > 20) {
       this.active = false

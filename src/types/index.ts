@@ -13,4 +13,9 @@ export interface StageConfig {
   obstacleSpawnInterval: number
   backgroundColor: number
   groundColors: { color1: string; color2: string }
+  scoreNeededForClear: number
+  gameSpeed: number // Speed multiplier (1.0 = normal)
+  hasCeiling: boolean
+  ceilingColors?: { color1: string; color2: string }
+  enemiesCanShoot: boolean
 }
