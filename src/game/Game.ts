@@ -10,8 +10,11 @@ import { EnemyTypeB } from './EnemyTypeB'
 import { EnemyTypeC } from './EnemyTypeC'
 import { Obstacle } from './Obstacle'
 import { CollisionDetector } from '../utils/CollisionDetector'
+import { ScoreManager } from '../utils/ScoreManager'
 import { HUD } from '../ui/HUD'
 import { GameOverScreen } from '../ui/GameOverScreen'
+import { StageClearScreen } from '../ui/StageClearScreen'
+import { getStageConfig } from './StageData'
 
 export class Game {
   private sceneManager: SceneManager
@@ -23,30 +26,39 @@ export class Game {
   private background: Background
   private hud: HUD
   private gameOverScreen: GameOverScreen
+  private stageClearScreen: StageClearScreen
   private collisionDetector: CollisionDetector
+  private scoreManager: ScoreManager
   private clock: THREE.Clock
-  private gameState: 'playing' | 'gameover' = 'playing'
+  private gameState: 'playing' | 'gameover' | 'stageclear' = 'playing'
   private currentStage: number = 1
-  private score: number = 0
   private maxBullets: number = 5
 
   // Enemy spawning
   private enemySpawnTimer: number = 0
-  private enemySpawnInterval: number = 2.0 // seconds
+  private enemySpawnInterval: number = 2.0
   private obstacleSpawnTimer: number = 0
   private obstacleSpawnInterval: number = 4.0
+
+  // Stage clear tracking
+  private enemiesKilledThisStage: number = 0
+  private enemiesNeededForClear: number = 20
 
   constructor() {
     this.sceneManager = new SceneManager()
     this.inputManager = new InputManager()
     this.collisionDetector = new CollisionDetector()
+    this.scoreManager = new ScoreManager()
     this.clock = new THREE.Clock()
     this.background = new Background(this.sceneManager.getScene())
     this.player = new Player(this.sceneManager.getScene())
     this.hud = new HUD()
     this.gameOverScreen = new GameOverScreen(() => this.restart())
+    this.stageClearScreen = new StageClearScreen(() => this.nextStage())
 
+    this.loadStage(1)
     this.hud.show()
+    this.hud.updateScore(this.scoreManager.getScore())
     this.gameLoop()
   }
 
@@ -63,7 +75,6 @@ export class Game {
   }
 
   private update(deltaTime: number): void {
-    // Update input
     const input = this.inputManager.getInputState()
 
     // Update player
@@ -100,8 +111,6 @@ export class Game {
     this.enemies = this.enemies.filter(enemy => {
       if (!enemy.active) {
         enemy.destroy(this.sceneManager.getScene())
-        this.score += 100 // Add score for destroyed enemy
-        this.hud.updateScore(this.score)
         return false
       }
       return true
@@ -124,9 +133,34 @@ export class Game {
     // Update background
     this.background.update(deltaTime)
 
-    // Collision detection
-    this.collisionDetector.checkBulletEnemyCollisions(this.bullets, this.enemies)
+    // Collision detection - bullets vs enemies
+    for (const bullet of this.bullets) {
+      if (!bullet.active) continue
 
+      for (const enemy of this.enemies) {
+        if (!enemy.active) continue
+
+        if (this.collisionDetector.checkSphereCollision(bullet.getPosition(), 0.2, enemy.getPosition(), 1)) {
+          bullet.active = false
+          const destroyed = enemy.takeDamage(1)
+          if (destroyed) {
+            // Add score based on enemy type
+            const enemyType = this.getEnemyType(enemy)
+            this.scoreManager.addEnemyScore(enemyType)
+            this.hud.updateScore(this.scoreManager.getScore())
+            this.enemiesKilledThisStage++
+
+            // Check stage clear
+            if (this.enemiesKilledThisStage >= this.enemiesNeededForClear) {
+              this.handleStageClear()
+            }
+          }
+          break
+        }
+      }
+    }
+
+    // Player vs enemies
     if (this.collisionDetector.checkPlayerEnemyCollisions(playerPos, this.enemies)) {
       const gameOver = this.player.takeDamage(1)
       this.hud.updateHP(this.player.getHP())
@@ -135,6 +169,7 @@ export class Game {
       }
     }
 
+    // Player vs obstacles
     if (this.collisionDetector.checkPlayerObstacleCollisions(playerPos, this.obstacles)) {
       const gameOver = this.player.takeDamage(1)
       this.hud.updateHP(this.player.getHP())
@@ -156,6 +191,13 @@ export class Game {
       this.spawnObstacle()
       this.obstacleSpawnTimer = 0
     }
+  }
+
+  private getEnemyType(enemy: Enemy): 'A' | 'B' | 'C' {
+    if (enemy instanceof EnemyTypeA) return 'A'
+    if (enemy instanceof EnemyTypeB) return 'B'
+    if (enemy instanceof EnemyTypeC) return 'C'
+    return 'A'
   }
 
   private spawnEnemy(): void {
@@ -193,9 +235,45 @@ export class Game {
     this.obstacles.push(obstacle)
   }
 
+  private loadStage(stageNumber: number): void {
+    const stageConfig = getStageConfig(stageNumber)
+    this.currentStage = stageNumber
+    this.enemySpawnInterval = stageConfig.enemySpawnInterval
+    this.obstacleSpawnInterval = stageConfig.obstacleSpawnInterval
+    this.enemiesKilledThisStage = 0
+
+    // Update background colors
+    this.background.updateGroundColors(stageConfig.groundColors.color1, stageConfig.groundColors.color2)
+
+    // Update HUD
+    this.hud.updateStage(stageNumber)
+  }
+
+  private handleStageClear(): void {
+    this.gameState = 'stageclear'
+    const bonus = this.currentStage * 1000
+    this.scoreManager.addStageBonus(this.currentStage)
+    this.hud.updateScore(this.scoreManager.getScore())
+    this.stageClearScreen.show(this.currentStage, this.scoreManager.getScore(), bonus)
+  }
+
+  private nextStage(): void {
+    if (this.currentStage >= 5) {
+      // Game complete
+      this.scoreManager.saveHighScore()
+      this.handleGameOver()
+    } else {
+      this.currentStage++
+      this.loadStage(this.currentStage)
+      this.gameState = 'playing'
+      this.clock.getDelta() // Reset delta
+    }
+  }
+
   private handleGameOver(): void {
     this.gameState = 'gameover'
-    this.gameOverScreen.show(this.score, this.currentStage)
+    this.scoreManager.saveHighScore()
+    this.gameOverScreen.show(this.scoreManager.getScore(), this.currentStage)
   }
 
   private restart(): void {
@@ -214,22 +292,25 @@ export class Game {
     this.enemies = []
     this.obstacles = []
 
-    // Reset player (recreate)
+    // Reset player
     this.player.getMesh().removeFromParent()
     this.player = new Player(this.sceneManager.getScene())
 
     // Reset game state
-    this.score = 0
+    this.scoreManager.reset()
     this.currentStage = 1
     this.gameState = 'playing'
     this.enemySpawnTimer = 0
     this.obstacleSpawnTimer = 0
+    this.enemiesKilledThisStage = 0
+
+    // Load stage 1
+    this.loadStage(1)
 
     // Update HUD
     this.hud.updateHP(this.player.getHP())
-    this.hud.updateScore(this.score)
-    this.hud.updateStage(this.currentStage)
+    this.hud.updateScore(this.scoreManager.getScore())
 
-    this.clock.getDelta() // Reset delta time
+    this.clock.getDelta()
   }
 }
