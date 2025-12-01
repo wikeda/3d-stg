@@ -80,8 +80,8 @@ export class Game {
     // Update player
     this.player.update(deltaTime, input)
 
-    // Shooting
-    if (input.shoot && this.player.canShoot() && this.bullets.length < this.maxBullets) {
+    // Shooting (removed bullet count limit)
+    if (input.shoot && this.player.canShoot()) {
       const bullet = new Bullet(this.sceneManager.getScene(), this.player.getPosition())
       this.bullets.push(bullet)
       this.player.resetShootCooldown()
@@ -140,7 +140,8 @@ export class Game {
       for (const enemy of this.enemies) {
         if (!enemy.active) continue
 
-        if (this.collisionDetector.checkSphereCollision(bullet.getPosition(), 0.2, enemy.getPosition(), 1)) {
+        // Increased collision radius for better hit detection
+        if (this.collisionDetector.checkSphereCollision(bullet.getPosition(), 0.5, enemy.getPosition(), 1.5)) {
           bullet.active = false
           const destroyed = enemy.takeDamage(1)
           if (destroyed) {
@@ -155,6 +156,20 @@ export class Game {
               this.handleStageClear()
             }
           }
+          break
+        }
+      }
+    }
+
+    // Collision detection - bullets vs obstacles
+    for (const bullet of this.bullets) {
+      if (!bullet.active) continue
+
+      for (const obstacle of this.obstacles) {
+        if (!obstacle.active) continue
+
+        if (this.collisionDetector.checkSphereCollision(bullet.getPosition(), 0.5, obstacle.getPosition(), 2.0)) {
+          bullet.active = false
           break
         }
       }

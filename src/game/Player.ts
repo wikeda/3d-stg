@@ -11,6 +11,11 @@ export class Player {
   private invincibleTime: number = 0
   private shootCooldown: number = 0
   private shootInterval: number = 0.15 // seconds between shots
+  private magazineSize: number = 7
+  private currentMagazine: number = 7
+  private reloadTime: number = 0.7 // seconds to reload
+  private reloading: boolean = false
+  private reloadTimer: number = 0
 
   constructor(scene: THREE.Scene) {
     this.mesh = this.createMesh()
@@ -64,14 +69,47 @@ export class Player {
     if (this.shootCooldown > 0) {
       this.shootCooldown -= deltaTime
     }
+
+    // Reload timer
+    if (this.reloading) {
+      this.reloadTimer -= deltaTime
+      if (this.reloadTimer <= 0) {
+        this.reloading = false
+        this.currentMagazine = this.magazineSize
+      }
+    }
   }
 
   canShoot(): boolean {
-    return this.shootCooldown <= 0
+    return this.shootCooldown <= 0 && !this.reloading && this.currentMagazine > 0
   }
 
   resetShootCooldown(): void {
     this.shootCooldown = this.shootInterval
+    this.currentMagazine--
+
+    // Auto reload when magazine is empty
+    if (this.currentMagazine <= 0 && !this.reloading) {
+      this.startReload()
+    }
+  }
+
+  private startReload(): void {
+    this.reloading = true
+    this.reloadTimer = this.reloadTime
+  }
+
+  isReloading(): boolean {
+    return this.reloading
+  }
+
+  getCurrentMagazine(): number {
+    return this.currentMagazine
+  }
+
+  getReloadProgress(): number {
+    if (!this.reloading) return 1
+    return 1 - (this.reloadTimer / this.reloadTime)
   }
 
   takeDamage(amount: number): boolean {
